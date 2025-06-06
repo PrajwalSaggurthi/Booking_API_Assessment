@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}My Bookings - Fitness Booking{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <h1 class="text-3xl font-bold text-gray-800 mb-8">My Bookings</h1>
+    
+    <div id="bookingsList" class="space-y-4">
+        <!-- Bookings will be populated here via JavaScript -->
+    </div>
+    
+    <div id="noBookings" class="hidden bg-white rounded-lg shadow-md p-6 text-center">
+        <p class="text-gray-600">You don't have any bookings yet.</p>
+        <a href="/" class="inline-block mt-4 text-blue-600 hover:text-blue-800">Book a class</a>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    const email = "{{ email }}";
+    const bookingsList = document.getElementById('bookingsList');
+    const noBookings = document.getElementById('noBookings');
+    
+    try {
+        const response = await fetch(`/api/bookings?email=${encodeURIComponent(email)}`);
+        const bookings = await response.json();
+        
+        if (bookings.length === 0) {
+            noBookings.classList.remove('hidden');
+            return;
+        }
+        
+        bookings.forEach(booking => {
+            const bookingCard = document.createElement('div');
+            bookingCard.className = 'bg-white rounded-lg shadow-md p-6';
+            bookingCard.innerHTML = `
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h3 class="text-lg font-semibold mb-2">Class #${booking.class_id}</h3>
+                        <p class="text-gray-600 mb-2">Booked on: ${new Date(booking.date_time).toLocaleString()}</p>
+                    </div>
+                    <button onclick="deleteBooking(${booking.class_id}, '${email}', '${booking.user_name}')"
+                        class="text-red-600 hover:text-red-800 focus:outline-none">
+                        Cancel Booking
+                    </button>
+                </div>
+            `;
+            bookingsList.appendChild(bookingCard);
+        });
+    } catch (error) {
+        console.error('Error fetching bookings:', error);
+        noBookings.classList.remove('hidden');
+    }
+});
+
+async function deleteBooking(classId, email, userName) {
+    if (!confirm('Are you sure you want to cancel this booking?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/bookings', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                class_id: classId,
+                user_email: email,
+                user_name: userName,
+                date_time: new Date().toISOString()
+            })
+        });
+        
+        if (response.ok) {
+            alert('Booking cancelled successfully!');
+            window.location.reload();
+        } else {
+            const error = await response.json();
+            alert(error.detail || 'Failed to cancel booking. Please try again.');
+        }
+    } catch (error) {
+        alert('An error occurred. Please try again.');
+    }
+}
+</script>
+{% endblock %} 
